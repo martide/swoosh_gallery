@@ -60,8 +60,8 @@ defmodule Swoosh.GalleryTest do
       # Preview in group with explicit options should merge group and preview options
       group_preview_with_options = Enum.find(previews.previews, fn %{path: path} -> path == "localized.welcome-fr" end)
       assert group_preview_with_options
-      assert group_preview_with_options.email_mfa == {Support.Emails.OptionsEmail, :preview, [locale: "fr", locale: "de"]}
-      assert group_preview_with_options.details_mfa == {Support.Emails.OptionsEmail, :preview_details, [locale: "fr", locale: "de"]}
+      assert group_preview_with_options.email_mfa == {Support.Emails.OptionsEmail, :preview, [locale: "fr"]}
+      assert group_preview_with_options.details_mfa == {Support.Emails.OptionsEmail, :preview_details, [locale: "fr"]}
     end
 
     test "group without options passes empty options" do

@@ -208,7 +208,7 @@ defmodule Swoosh.Gallery do
     validate_preview_details!(module)
 
     quote do
-      merged_options = List.wrap(unquote(options)) ++ List.wrap(@group_options)
+      merged_options = Keyword.merge(List.wrap(@group_options), List.wrap(unquote(options)))
       @previews %{
         group: @group_path,
         path: build_preview_path(@group_path, unquote(path)),
