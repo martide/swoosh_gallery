@@ -38,6 +38,56 @@ defmodule Swoosh.GalleryTest do
     end
   end
 
+  describe "options functionality" do
+    test "preview with direct options" do
+      assert previews = Support.GalleryWithOptions.get()
+
+      direct_options_preview = Enum.find(previews.previews, fn %{path: path} -> path == "direct-options" end)
+      assert direct_options_preview
+      assert direct_options_preview.email_mfa == {Support.Emails.OptionsEmail, :preview, [locale: "fr"]}
+      assert direct_options_preview.details_mfa == {Support.Emails.OptionsEmail, :preview_details, [locale: "fr"]}
+    end
+
+    test "group with options passes options to previews" do
+      assert previews = Support.GalleryWithOptions.get()
+
+      # Preview in group without explicit options should inherit group options
+      group_preview = Enum.find(previews.previews, fn %{path: path} -> path == "localized.welcome" end)
+      assert group_preview
+      assert group_preview.email_mfa == {Support.Emails.OptionsEmail, :preview, [locale: "de"]}
+      assert group_preview.details_mfa == {Support.Emails.OptionsEmail, :preview_details, [locale: "de"]}
+
+      # Preview in group with explicit options should merge group and preview options
+      group_preview_with_options = Enum.find(previews.previews, fn %{path: path} -> path == "localized.welcome-fr" end)
+      assert group_preview_with_options
+      assert group_preview_with_options.email_mfa == {Support.Emails.OptionsEmail, :preview, [locale: "fr", locale: "de"]}
+      assert group_preview_with_options.details_mfa == {Support.Emails.OptionsEmail, :preview_details, [locale: "fr", locale: "de"]}
+    end
+
+    test "group without options passes empty options" do
+      assert previews = Support.GalleryWithOptions.get()
+
+      default_preview = Enum.find(previews.previews, fn %{path: path} -> path == "default.welcome" end)
+      assert default_preview
+      assert default_preview.email_mfa == {Support.Emails.OptionsEmail, :preview, []}
+      assert default_preview.details_mfa == {Support.Emails.OptionsEmail, :preview_details, []}
+    end
+
+    test "groups structure includes all groups" do
+      assert previews = Support.GalleryWithOptions.get()
+
+      assert length(previews.groups) == 2
+
+      localized_group = Enum.find(previews.groups, fn %{path: path} -> path == "localized" end)
+      assert localized_group
+      assert localized_group.title == "Localized Emails"
+
+      default_group = Enum.find(previews.groups, fn %{path: path} -> path == "default" end)
+      assert default_group
+      assert default_group.title == "Default Emails"
+    end
+  end
+
   describe "sort option" do
     test "when is not set, returns the default true" do
       assert %{sort: true} = Support.Gallery.get()

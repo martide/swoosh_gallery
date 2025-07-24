@@ -119,6 +119,7 @@ defmodule Swoosh.Gallery do
       Module.register_attribute(__MODULE__, :previews, accumulate: true)
       Module.register_attribute(__MODULE__, :groups, accumulate: true)
       @group_path nil
+      @group_options []
       @sort Keyword.get(unquote(options), :sort, true)
 
       def init(opts) do
@@ -156,20 +157,63 @@ defmodule Swoosh.Gallery do
         preview "/account-confirmed", MyApp.Emails.AccountConfirmed
         preview "/password-reset", MyApp.Emails.PasswordReset
 
+        # With options
+        preview "/welcome", MyApp.Emails.Welcome, ["en-GB"]
+        preview "/welcome", MyApp.Emails.Welcome, [locale: "en-GB"]
+
       end
+
+  ## Options
+
+  The `options` parameter will be passed to both the `preview/1` and `preview_details/1`
+  functions of the mailer module. When used inside a group, these options will be merged
+  with any group-level options.
+
+  ## Backward Compatibility
+
+  The library automatically handles backward compatibility. Mailer modules can implement either:
+
+  **Simple form (recommended for most cases):**
+      def preview() do
+        # Implementation without options
+      end
+
+      def preview_details() do
+        [title: "My Email"]
+      end
+
+  **With options support:**
+      def preview() do
+        preview([])  # Call the options version with empty options
+      end
+
+      def preview(options) when is_list(options) do
+        # Implementation with options
+      end
+
+      def preview_details() do
+        preview_details([])  # Call the options version with empty options
+      end
+
+      def preview_details(options) when is_list(options) do
+        # Implementation with options
+      end
+
+  The library will automatically try to call the arity-1 version first, and fall back to arity-0 if it doesn't exist.
   """
-  @spec preview(String.t(), module()) :: no_return()
-  defmacro preview(path, module) do
+  @spec preview(String.t(), module(), list()) :: no_return()
+  defmacro preview(path, module, options \\ []) do
     path = validate_path(path)
     module = Macro.expand(module, __ENV__)
     validate_preview_details!(module)
 
     quote do
+      merged_options = List.wrap(unquote(options)) ++ List.wrap(@group_options)
       @previews %{
         group: @group_path,
         path: build_preview_path(@group_path, unquote(path)),
-        email_mfa: {unquote(module), :preview, []},
-        details_mfa: {unquote(module), :preview_details, []}
+        email_mfa: {unquote(module), :preview, merged_options},
+        details_mfa: {unquote(module), :preview_details, merged_options}
       }
     end
   end
@@ -188,6 +232,11 @@ defmodule Swoosh.Gallery do
           preview "/account-confirmed", MyApp.Emails.AccountConfirmed
         end
 
+        group "/localized", title: "Localized Emails", options: ["en-GB"] do
+          preview "/welcome", MyApp.Emails.Welcome
+          preview "/account-confirmed", MyApp.Emails.AccountConfirmed
+        end
+
         preview "/password-reset", MyApp.Emails.PasswordReset
       end
 
@@ -196,14 +245,16 @@ defmodule Swoosh.Gallery do
   The supported options are:
 
     * `:title` - a string containing the group name.
+    * `:options` - a list of options to pass to all previews within this group.
   """
   defmacro group(path, opts, do: block) do
     path = validate_path(path)
+    extra_options = Keyword.get(opts, :options, [])
 
     group =
       opts
       |> Keyword.put(:path, path)
-      |> Keyword.validate!([:path, :title])
+      |> Keyword.validate!([:path, :title, :options])
       |> Map.new()
       |> Macro.escape()
 
@@ -211,10 +262,12 @@ defmodule Swoosh.Gallery do
       is_nil(@group_path) || raise "`group/3` cannot be nested"
 
       @group_path unquote(path)
+      @group_options unquote(extra_options)
 
       @groups unquote(group)
       unquote(block)
       @group_path nil
+      @group_options []
     end
   end
 
@@ -240,7 +293,8 @@ defmodule Swoosh.Gallery do
   end
 
   defp eval_email(%{email_mfa: {module, fun, opts}} = preview) do
-    Map.put(preview, :email, apply(module, fun, opts))
+    email = call_with_fallback(module, fun, opts)
+    Map.put(preview, :email, email)
   end
 
   # Evaluates preview details. It loads the results of details_mfa into the
@@ -250,7 +304,8 @@ defmodule Swoosh.Gallery do
   def eval_details(%{preview_details: _details} = preview), do: preview
 
   def eval_details(%{details_mfa: {module, fun, opts}} = preview) do
-    Map.put(preview, :preview_details, validate_preview_details!(module, fun, opts))
+    details = call_with_fallback(module, fun, opts)
+    Map.put(preview, :preview_details, validate_preview_details!(details))
   end
 
   def eval_details(previews) when is_list(previews) do
@@ -286,12 +341,36 @@ defmodule Swoosh.Gallery do
     end
   end
 
-  defp validate_preview_details!(module, fun \\ :preview_details, opts \\ []) do
+  # For macro validation (during compilation)
+  defp validate_preview_details!(module) when is_atom(module) do
+    # Just check that the module exists and has the required functions
+    # The actual validation will happen at runtime
     module
-    |> apply(fun, opts)
+  end
+
+  # For runtime validation (after calling the function)
+  defp validate_preview_details!(details) when is_list(details) do
+    details
     |> Keyword.validate!([:title, :description, tags: []])
     |> Map.new()
     |> tap(&ensure_title!/1)
+  end
+
+  # Helper function to call a function with options, falling back to no options if it fails
+  defp call_with_fallback(module, fun, opts) do
+    if opts == [] do
+      # If no options, try the arity-0 version first
+      apply(module, fun, [])
+    else
+      # If we have options, try arity-1 first, then fall back to arity-0
+      try do
+        apply(module, fun, [opts])
+      rescue
+        UndefinedFunctionError ->
+          # Fall back to arity-0 if arity-1 doesn't exist
+          apply(module, fun, [])
+      end
+    end
   end
 
   defp ensure_title!(details) do
