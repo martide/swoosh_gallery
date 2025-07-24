@@ -392,9 +392,14 @@ defmodule Swoosh.Gallery do
   defp validate_path(path) when is_atom(path), do: Atom.to_string(path)
 
   defp validate_path(path) do
-    # Handle AST interpolation by returning the path as-is for macro expansion
-    # The actual validation will happen at runtime
-    path
+    # For AST interpolation, we need to evaluate it at compile time
+    case Macro.expand(path, __ENV__) do
+      expanded when is_binary(expanded) -> expanded
+      expanded when is_atom(expanded) -> Atom.to_string(expanded)
+      _ ->
+        # If we can't expand it, return as-is and let it fail at runtime
+        path
+    end
   end
 
   @doc false
