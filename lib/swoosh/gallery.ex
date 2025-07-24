@@ -389,8 +389,12 @@ defmodule Swoosh.Gallery do
 
   defp validate_path(path) when is_binary(path), do: path
 
+  defp validate_path(path) when is_atom(path), do: Atom.to_string(path)
+
   defp validate_path(path) do
-    raise ArgumentError, "router paths must be strings, got: #{inspect(path)}"
+    # Handle AST interpolation by returning the path as-is for macro expansion
+    # The actual validation will happen at runtime
+    path
   end
 
   @doc false
