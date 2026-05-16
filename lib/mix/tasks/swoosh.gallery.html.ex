@@ -25,7 +25,6 @@ defmodule Mix.Tasks.Swoosh.Gallery.Html do
 
   """
   use Mix.Task
-  require Mix.Generator
 
   alias Swoosh.Gallery
   alias Swoosh.Gallery.Layout
