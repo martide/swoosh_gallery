@@ -29,7 +29,7 @@ defmodule SwooshGallery.MixProject do
 
   defp deps do
     [
-      {:plug_cowboy, ">= 1.0.0"},
+      {:plug, "~> 1.10"},
       {:swoosh, "~> 1.5"},
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
       {:hackney, "~> 1.9", only: [:test]},

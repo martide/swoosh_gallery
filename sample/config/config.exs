@@ -9,6 +9,7 @@ import Config
 
 # Configures the endpoint
 config :sample, SampleWeb.Endpoint,
+  adapter: Bandit.PhoenixAdapter,
   url: [host: "localhost"],
   render_errors: [view: SampleWeb.ErrorView, accepts: ~w(html json), layout: false],
   live_view: [signing_salt: "e6iYhBPw"]

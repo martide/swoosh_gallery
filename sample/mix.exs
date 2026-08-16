@@ -36,7 +36,7 @@ defmodule Sample.MixProject do
       {:phoenix_html, "~> 3.0"},
       {:phoenix_swoosh, "~> 1.0"},
       {:jason, "~> 1.2"},
-      {:plug_cowboy, "~> 2.5"}
+      {:bandit, "~> 1.0"}
     ]
   end
 
