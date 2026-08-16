@@ -32,7 +32,7 @@ defmodule SwooshGallery.MixProject do
       {:plug, "~> 1.10"},
       {:swoosh, "~> 1.5"},
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
-      {:hackney, "~> 1.9", only: [:test]},
+      {:hackney, "~> 4.7", only: [:test]},
       {:tailwind, "~> 0.1", only: [:dev, :test]},
       {:dialyxir, "~> 1.4.1", only: [:dev, :test], runtime: false}
     ]
